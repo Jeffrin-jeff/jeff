@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>My history – LabLens</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/analyze.css" />
+  <link rel="stylesheet" href="css/history.css" />
+</head>
+<body>
+  <div class="bg" aria-hidden="true">
+    <span class="blob blob-pink"></span>
+    <span class="blob blob-lime"></span>
+    <span class="grid-floor"></span>
+    <span class="noise"></span>
+  </div>
+
+  <header class="nav" id="nav">
+    <a href="index.html" class="brand" aria-label="LabLens home">
+      <span class="brand-mark">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-6 4 12 2-6h6"/></svg>
+      </span>
+      LabLens
+    </a>
+    <nav class="nav-links" aria-label="Main">
+      <a href="index.html">Home</a>
+      <a href="analyze.html">New report</a>
+      <a href="history.html" aria-current="page">History</a>
+    </nav>
+    <a href="analyze.html" class="btn btn-small">Add report</a>
+  </header>
+
+  <main class="wrap">
+    <header class="head">
+      <p class="pill"><span class="dot"></span> Saved on this device only</p>
+      <h1>Your <span class="grad">history</span></h1>
+      <p class="lead">Reopen past reports and watch how your values change over time.</p>
+    </header>
+
+    <p class="privacy-note" id="storeMsg" hidden></p>
+
+    <!-- TREND -->
+    <section class="box" id="trendBox" aria-labelledby="trendTitle" hidden>
+      <h2 class="box-title" id="trendTitle">Trend over time</h2>
+      <div class="trend-controls">
+        <label class="lbl" for="trendSel">Test</label>
+        <select class="inp" id="trendSel"></select>
+      </div>
+      <div class="chart-wrap" id="chartWrap">
+        <canvas id="trendChart" role="img" aria-label="Line chart of the selected test over your saved reports"></canvas>
+      </div>
+      <p class="trend-note" id="trendNote"></p>
+      <div style="overflow-x:auto">
+        <table class="ttable" id="ttable"></table>
+      </div>
+    </section>
+
+    <!-- SAVED REPORTS -->
+    <section id="listBox" aria-labelledby="listTitle">
+      <h2 class="box-title" id="listTitle">Saved reports</h2>
+      <div class="hlist" id="list"></div>
+      <div class="hfoot" id="foot" hidden>
+        <button type="button" class="btn btn-ghost" id="exportBtn">Export backup (.json)</button>
+        <button type="button" class="btn btn-ghost danger" id="clearAllBtn">Delete all my data</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p class="disclaimer">
+      <strong>Medical disclaimer:</strong> LabLens is for education and general awareness only. It does not replace a doctor's advice, diagnosis or treatment. Always consult a qualified healthcare professional.
+    </p>
+    <p class="copy">Reports are stored in this browser only. Anyone using this device and browser could see them, so use “Delete all my data” on shared computers.</p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="js/params.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/history.js"></script>
+</body>
+</html>

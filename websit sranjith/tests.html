@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Engine tests</title>
+  <style>
+    body{background:#0B080B;color:#f5eff4;font-family:system-ui,sans-serif;padding:30px;max-width:900px;margin:auto}
+    h1{margin-bottom:6px} .sum{margin-bottom:20px;font-size:1.1rem}
+    table{width:100%;border-collapse:collapse;font-size:.9rem}
+    td,th{padding:7px 10px;border-bottom:1px solid #ffffff18;text-align:left}
+    .pass{color:#D4FF35} .fail{color:#FF2DA8;font-weight:700}
+    tr.f{background:#ff2da814}
+  </style>
+</head>
+<body>
+  <h1>Range engine tests</h1>
+  <p class="sum" id="sum"></p>
+  <table><thead><tr><th>Test</th><th>Result</th><th>Got</th><th>Expected</th></tr></thead><tbody id="rows"></tbody></table>
+
+  <script src="js/params.js"></script>
+  <script src="js/engine.js"></script>
+  <script>
+    const rows = document.getElementById("rows");
+    let pass = 0, fail = 0;
+    function t(name, got, want) {
+      const g = JSON.stringify(got), w = JSON.stringify(want), ok = g === w;
+      ok ? pass++ : fail++;
+      rows.insertAdjacentHTML("beforeend",
+        `<tr class="${ok ? "" : "f"}"><td>${name}</td><td class="${ok ? "pass" : "fail"}">${ok ? "PASS" : "FAIL"}</td><td>${g}</td><td>${w}</td></tr>`);
+    }
+    const byId = PARAM_BY_ID;
+    const J = (id, v, sex = "male") => judge(v, byId[id], sex);
+    const L = (id, v, sex) => J(id, v, sex).level;
+
+    /* --- boundaries --- */
+    t("Hb 13.5 male (lower limit) is normal", L("hb", 13.5), "ok");
+    t("Hb 17.5 male (upper limit) is normal", L("hb", 17.5), "ok");
+    t("ESR 0 male is normal", L("esr", 0), "ok");
+    t("SpO2 100 is normal", L("spo2", 100), "ok");
+
+    /* --- levels --- */
+    t("Hb 13.0 male = borderline low", [J("hb", 13).level, J("hb", 13).dir], ["warn", "low"]);
+    t("Hb 12.0 male = abnormal low", L("hb", 12), "bad");
+    t("Hb 6.9 female = critical", J("hb", 6.9, "female").critical, true);
+
+    /* --- sex difference --- */
+    t("Hb 12.5 male = borderline", L("hb", 12.5, "male"), "warn");
+    t("Hb 12.5 female = normal", L("hb", 12.5, "female"), "ok");
+    t("HDL 45 male = normal", L("hdl", 45, "male"), "ok");
+    t("HDL 45 female = borderline", L("hdl", 45, "female"), "warn");
+    t("HDL 44 female = abnormal", L("hdl", 44, "female"), "bad");
+
+    /* --- diabetes cut-offs --- */
+    t("Glucose 99 normal", L("fbs", 99), "ok");
+    t("Glucose 100 borderline (prediabetes)", L("fbs", 100), "warn");
+    t("Glucose 125 borderline", L("fbs", 125), "warn");
+    t("Glucose 126 abnormal", L("fbs", 126), "bad");
+    t("Glucose 69 borderline low", L("fbs", 69), "warn");
+    t("Glucose 64 abnormal low", L("fbs", 64), "bad");
+    t("Glucose 49 critical", J("fbs", 49).critical, true);
+    t("HbA1c 5.6 normal", L("hba1c", 5.6), "ok");
+    t("HbA1c 6.4 borderline (float safe)", L("hba1c", 6.4), "warn");
+    t("HbA1c 6.5 abnormal", L("hba1c", 6.5), "bad");
+
+    /* --- lipids (one-sided ranges) --- */
+    t("Cholesterol 199 normal", L("tc", 199), "ok");
+    t("Cholesterol 239 borderline", L("tc", 239), "warn");
+    t("Cholesterol 240 abnormal", L("tc", 240), "bad");
+    t("Cholesterol never 'low' (one-sided)", J("tc", 1).dir, "none");
+
+    /* --- critical limits --- */
+    t("Potassium 6.1 critical", J("k", 6.1).critical, true);
+    t("Potassium 5.8 abnormal, not critical", [J("k", 5.8).level, J("k", 5.8).critical], ["bad", false]);
+    t("Sodium 119 critical", J("na", 119).critical, true);
+    t("Sodium 133 borderline", L("na", 133), "warn");
+    t("SpO2 94 borderline", L("spo2", 94), "warn");
+    t("SpO2 89 critical", J("spo2", 89).critical, true);
+    t("Temp 99.5 F borderline", L("temp", 99.5), "warn");
+    t("Temp 104.5 F critical", J("temp", 104.5).critical, true);
+
+    /* --- unit conversion --- */
+    t("Glucose 5.5 mmol/L → mg/dL", round(convert(byId.fbs, 5.5, "mmol/L", "mg/dL"), 1), 99.1);
+    t("Glucose 100 mg/dL → mmol/L", round(convert(byId.fbs, 100, "mg/dL", "mmol/L"), 2), 5.55);
+    t("Temp 98.6 F → C", round(convert(byId.temp, 98.6, "°F", "°C"), 1), 37);
+    t("Temp 37 C → F", round(toBase(byId.temp, 37, "°C"), 1), 98.6);
+    t("Creatinine 88.4 µmol/L → 1 mg/dL", round(toBase(byId.cr, 88.4, "µmol/L"), 2), 1);
+    t("Platelets 2.5 lakhs/cumm → 250", toBase(byId.plt, 2.5, "lakhs/cumm"), 250);
+    t("WBC 7500 /cumm → 7.5", round(toBase(byId.wbc, 7500, "/cumm"), 1), 7.5);
+    t("Unsupported unit throws", (() => { try { toBase(byId.hb, 1, "stone"); return "no error"; } catch { return "throws"; } })(), "throws");
+
+    /* --- BMI --- */
+    t("BMI 70 kg, 170 cm", round(bmi(70, 170), 1), 24.2);
+    t("BMI 24.2 Asian = borderline", judgeBMI(24.2, true).level, "warn");
+    t("BMI 24.2 global = normal", judgeBMI(24.2, false).level, "ok");
+    t("BMI 26 Asian = abnormal", judgeBMI(26, true).level, "bad");
+    t("BMI 31 global = abnormal", judgeBMI(31, false).level, "bad");
+    t("BMI 17 = borderline low", judgeBMI(17, true).level, "warn");
+    t("BMI 16.9 = abnormal low", judgeBMI(16.9, true).level, "bad");
+    t("BMI category Asian 24.2", judgeBMI(24.2, true).category, "Overweight");
+
+    /* --- blood pressure --- */
+    t("BP 118/76 normal", judgeBP(118, 76).level, "ok");
+    t("BP 125/78 elevated", [judgeBP(125, 78).level, judgeBP(125, 78).category], ["warn", "Elevated"]);
+    t("BP 135/82 stage 1", judgeBP(135, 82).category, "High (Stage 1)");
+    t("BP 118/85 stage 1 (diastolic decides)", judgeBP(118, 85).category, "High (Stage 1)");
+    t("BP 145/95 stage 2", judgeBP(145, 95).level, "bad");
+    t("BP 185/100 critical", judgeBP(185, 100).critical, true);
+    t("BP 85/55 low", [judgeBP(85, 55).level, judgeBP(85, 55).dir], ["warn", "low"]);
+    t("BP 75/45 critical low", judgeBP(75, 45).critical, true);
+
+    /* --- validation --- */
+    t("Negative value rejected", validateValue(byId.hb, -5).error !== null, true);
+    t("Text rejected", validateValue(byId.hb, "abc").error !== null, true);
+    t("Empty rejected", validateValue(byId.hb, "").error !== null, true);
+    t("Hb 500 gets a warning", validateValue(byId.hb, 500).warning !== null, true);
+    t("Hb 13 is clean", validateValue(byId.hb, 13), { error: null, warning: null });
+    t("36.6 typed as °F gets a warning", validateValue(byId.temp, 36.6).warning !== null, true);
+    t("Profile: age 17 rejected", validateProfile({ age: 17, sex: "male" }).valid, false);
+    t("Profile: age 30 male ok", validateProfile({ age: 30, sex: "male" }).valid, true);
+    t("Profile: bad sex rejected", validateProfile({ age: 30, sex: "x" }).valid, false);
+
+    /* --- full analysis --- */
+    const demo = analyze({ age: 35, sex: "male" },
+      { hb: 15, fbs: 110, ldl: 165, bp_sys: 150, bp_dia: 95, height_cm: 170, weight_kg: 70 });
+    t("Analyze: 5 results (hb, fbs, ldl, bmi, bp)", demo.results.length, 5);
+    t("Analyze: summary counts", demo.summary.counts, { normal: 1, borderline: 2, abnormal: 2 });
+    t("Analyze: no criticals", demo.summary.criticals.length, 0);
+    t("Analyze: results grouped by panel order", demo.results.map((r) => r.panel),
+      ["Blood count", "Diabetes", "Lipids", "Vitals", "Body"]);
+
+    /* --- data integrity --- */
+    t("At least 35 parameters", PARAMS.length >= 35, true);
+    t("No duplicate ids", new Set(PARAMS.map((p) => p.id)).size, PARAMS.length);
+    t("Every parameter has a range, aliases and a known panel",
+      PARAMS.every((p) => p.range && p.aliases.length && PANELS.includes(p.panel)), true);
+    t("Every non-BP parameter has low/high text",
+      PARAMS.filter((p) => !p.special).every((p) => typeof p.low === "string" && typeof p.high === "string"), true);
+
+    document.getElementById("sum").innerHTML =
+      `<span class="pass">${pass} passed</span> · <span class="${fail ? "fail" : "pass"}">${fail} failed</span>`;
+    document.title = fail ? `✗ ${fail} failed` : `✓ all ${pass} passed`;
+  </script>
+</body>
+</html>
